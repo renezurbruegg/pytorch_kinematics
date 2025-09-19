@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch_kinematics"
+version = "0.3.0"
+description = "Robot kinematics implemented in pytorch"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "zhsh", email = "zhsh@umich.edu"}
+]
+keywords = ["robotics", "kinematics", "pytorch", "urdf", "sdf", "mjcf"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "torch",
+    "numpy",
+    "transformations",
+    "absl-py"
+]
+
+[project.urls]
+Homepage = "https://github.com/UM-ARM-Lab/pytorch_kinematics"
+Repository = "https://github.com/UM-ARM-Lab/pytorch_kinematics"
+Issues = "https://github.com/UM-ARM-Lab/pytorch_kinematics/issues"
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
+dev = [
+    "pytest",
+    "black",
+    "flake8",
+    "mypy"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pytorch_kinematics*"]
+
+[tool.setuptools.package-data]
+pytorch_kinematics = ["mjcf_parser/schema.xml"]
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
