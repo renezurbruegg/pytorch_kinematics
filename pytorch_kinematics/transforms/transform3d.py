@@ -426,15 +426,16 @@ class Transform3d:
             msg = "Expected normals to have dim = 2 or dim = 3: got shape %r"
             raise ValueError(msg % (normals.shape,))
         composed_matrix = self.get_matrix()
-
-        # TODO: inverse is bad! Solve a linear system instead
         mat = composed_matrix[:, :3, :3]
-        normals_out = _broadcast_bmm(normals, mat.inverse())
-
-        # This doesn't pass unit tests. TODO investigate further
-        # if self._lu is None:
-        #     self._lu = self._matrix[:, :3, :3].transpose(1, 2).lu()
-        # normals_out = normals.lu_solve(*self._lu)
+        
+        # Match matrix dtype to normals dtype for compatibility
+        normals_dtype = normals.dtype
+        if mat.dtype != normals_dtype:
+            mat = mat.to(normals_dtype)
+        
+        # Direct matrix multiplication with transpose: normals @ mat^T
+        mat_T = mat.transpose(-1, -2)
+        normals_out = _broadcast_bmm(normals, mat_T)
 
         # When transform is (1, 4, 4) and normals is (P, 3) return
         # normals_out of shape (P, 3)
