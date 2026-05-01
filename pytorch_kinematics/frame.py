@@ -100,8 +100,6 @@ class Frame(object):
         d = self.joint.axis.device
         if self.joint.joint_type == 'revolute':
             # get quaternion from axis-angle representation
-            # ugly fix
-            theta = theta + 2*((theta > 0).float() - 0.5) * 1e-2 
             quat = torch.cat([torch.cos(theta / 2), torch.sin(theta / 2) * self.joint.axis], -1)
         
             t = tf.Transform3d(rot=quat, dtype=dtype, device=d)
