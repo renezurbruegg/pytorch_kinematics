@@ -209,7 +209,7 @@ class Transform3d:
                 # build matrix
                 
             else:
-                self._matrix = torch.eye(4, dtype=dtype, device=device).view(default_batch_size, 4, 4)
+                self._matrix = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).expand(default_batch_size, -1, -1).contiguous()
         else:
             if matrix.ndim not in (2, 3):
                 raise ValueError('"matrix" has to be a 2- or a 3-dimensional tensor.')
