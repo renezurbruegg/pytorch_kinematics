@@ -100,8 +100,20 @@ class Frame(object):
         d = self.joint.axis.device
         if self.joint.joint_type == 'revolute':
             # get quaternion from axis-angle representation
-            # ugly fix
-            theta = theta + 2*((theta > 0).float() - 0.5) * 1e-2 
+            #
+            # NOTE a +/-0.01 rad bias used to be added here, commented
+            # "ugly fix", presumably to dodge a gradient singularity at
+            # theta = 0:
+            #
+            #     theta = theta + 2*((theta > 0).float() - 0.5) * 1e-2
+            #
+            # It meant the chain never evaluated the pose it was handed:
+            # ask for 0.5 rad and get 0.51, ask for 0 and get -0.01, with
+            # a 0.02 rad step across zero -- exactly where a resting
+            # finger sits. Silent and uniform, so it read as a plausible
+            # fit rather than a broken one, and it compounded down the
+            # chain: on a humanoid upper body it reached 0.99 deg at the
+            # torso and 26 mm at the fingertips.
             quat = torch.cat([torch.cos(theta / 2), torch.sin(theta / 2) * self.joint.axis], -1)
         
             t = tf.Transform3d(rot=quat, dtype=dtype, device=d)

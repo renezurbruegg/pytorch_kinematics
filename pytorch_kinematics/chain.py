@@ -1,6 +1,8 @@
 import torch
 from . import jacobian
 import pytorch_kinematics.transforms as tf
+
+from . import batched_fk
 from torch.func import vmap, jacrev
 
 
@@ -49,6 +51,21 @@ def ensure_2d_tensor(th, dtype, device):
     else:
         N = th.shape[0]
     return th, N
+
+
+#: the default `world` of `forward_kinematics`, so the batched path can
+#: recognise "no world was passed" by identity and not by comparing
+#: matrices on every call
+_IDENTITY_WORLD = tf.Transform3d()
+
+
+def _is_identity_world(world) -> bool:
+    """True when `world` is an unbatched identity, so it can be skipped."""
+    m = world.get_matrix()
+    if m.shape[0] != 1:
+        return False
+    return bool(torch.equal(m[0], torch.eye(4, dtype=m.dtype,
+                                            device=m.device)))
 
 
 class Chain(object):
@@ -154,12 +171,37 @@ class Chain(object):
             link_transforms.update(Chain._forward_kinematics(child, th_dict, trans, root.name))
         return link_transforms
 
-    def forward_kinematics(self, th, world=tf.Transform3d()):
+    def _fk_world(self):
+        """The identity `world` transform, on this chain's device/dtype."""
+        return tf.Transform3d(dtype=self.dtype, device=self.device)
+
+    def forward_kinematics(self, th, world=_IDENTITY_WORLD):
+        """Link transforms for a batch of joint configurations.
+
+        A plain tensor of joint angles with no `world` override -- what
+        grasp synthesis calls on every optimizer step -- goes through
+        `batched_fk`, which issues one batched op per tree DEPTH rather
+        than one per frame. Same maths, checked against the recursive
+        walk below (poses and gradients) by `batched_fk.verify`; the
+        recursive walk still serves a joint DICT or a `world`, which are
+        not hot and which the batched form deliberately does not guess
+        at.
+        """
         if not isinstance(th, dict):
             jn = self.get_joint_parameter_names()
             if len(jn) != th.shape[1]:
                 raise ValueError("Invalid number of joint parameters.", "Expected %d, got %d." % (len(jn), th.shape[1]))
             assert len(jn) == th.shape[1]
+            if world is _IDENTITY_WORLD or _is_identity_world(world):
+                fk = self.__dict__.get("_batched_fk")
+                # `chain.to()` moves the frames this reads its offsets
+                # from, so a moved chain rebuilds rather than reusing
+                # offsets left on the old device
+                if (fk is None or fk.device != self.device
+                        or fk.dtype != self.dtype):
+                    fk = batched_fk.BatchedFK(self)
+                    self.__dict__["_batched_fk"] = fk
+                return fk(th)
             th_dict = dict((j, th[:, i]) for i, j in enumerate(jn))
         else:
             th_dict = th
