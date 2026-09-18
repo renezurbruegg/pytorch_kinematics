@@ -53,8 +53,15 @@ class Joint(object):
                 self.axis = axis.clone().detach().to(dtype=dtype, device=device)
             else:
                 self.axis = torch.tensor(axis, dtype=dtype, device=device)
-        # normalize axis to have norm 1 (needed for correct representation scaling with theta)
-        self.axis = self.axis / self.axis.norm()
+        # normalize axis to have norm 1 (needed for correct representation scaling with theta).
+        # A fixed joint has no axis to speak of and URDFs may write it as "0 0 0"
+        # (Sharpa's `*_fix_joint`s do); normalising that is 0/0 and poisons every
+        # downstream transform with NaN, so a zero axis falls back to z instead.
+        norm = self.axis.norm()
+        if norm > 0:
+            self.axis = self.axis / norm
+        else:
+            self.axis = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
 
     def to(self, *args, **kwargs):
         self.axis = self.axis.to(*args, **kwargs)
